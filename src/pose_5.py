@@ -102,8 +102,7 @@ def minimize_marginals(graph, initial_estimate, pose_options):
             # seleect winner
             selection_score = marginals_obj.marginalCovariance(L(landmark)).sum()
 
-            current_sum = (marginals_obj.marginalCovariance(L(1)).sum() +
-                           marginals_obj.marginalCovariance(L(2)).sum())
+            current_sum = (marginals_obj.marginalCovariance(L(1)).sum() + marginals_obj.marginalCovariance(L(2)).sum())
 
             if selection_score < best_selection_score:
                 best_selection_score = selection_score
