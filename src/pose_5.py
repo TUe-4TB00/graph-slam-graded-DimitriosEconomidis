@@ -92,15 +92,62 @@ def minimize_errors(graph, initial_estimate, pose_options):
             g, est = add_pose(g, est, pose_5)
             result = optimize(g, est)
             g = add_landmark_measurement(g, result, pose_5, landmark)
+            
+            result = optimize(g, est)
 
-            # TODO: create a list of errors (each index corresponds to a pose) and add the error of each pose to the list
-            list_of_errors = [g.error(est)]
+            # Calculate marginal covariances
+            marginals_obj = gtsam.Marginals(g, result)
+
+            # TODO: create a list of errors (each index corresponds to a pose X1, X2, X3)
+            list_of_errors = [
+                marginals_obj.marginalCovariance(X(1)).sum(),
+                marginals_obj.marginalCovariance(X(2)).sum(),
+                marginals_obj.marginalCovariance(X(3)).sum()
+            ]
+            
             # TODO: compute the sum of the errors and return it along with the best pose and landmark
-            sum_of_errors = g.error(est)
+            sum_of_errors = sum(list_of_errors)
 
             if sum_of_errors < best_sum:
                 best_sum = sum_of_errors
                 best_pose = pose_key
                 best_landmark = landmark
 
-    return best_pose, best_landmark, best_sumx
+    return best_pose, best_landmark, best_sum
+
+#     best_pose = None
+    best_landmark = None
+    best_sum = float('inf')
+
+    for pose_key, pose_5 in pose_options.items():
+        for landmark in [1, 2]:
+            # make independent copies so iterations don't interfere
+            g = gtsam.NonlinearFactorGraph()
+            for i in range(graph.size()):
+                g.add(graph.at(i))
+            est = gtsam.Values(initial_estimate)
+
+            g, est = add_pose(g, est, pose_5)
+            result = optimize(g, est)
+            g = add_landmark_measurement(g, result, pose_5, landmark)
+            
+            # CRITICAL: You must optimize again after adding the measurement!
+            result = optimize(g, est) 
+
+            marginals_obj = gtsam.Marginals(g, result)
+
+            # Use the determinant (D-optimality) of the covariance matrices to measure "accuracy"
+            list_of_errors = [
+                np.linalg.det(marginals_obj.marginalCovariance(X(1))),
+                np.linalg.det(marginals_obj.marginalCovariance(X(2))),
+                np.linalg.det(marginals_obj.marginalCovariance(X(3)))
+            ]
+            
+            sum_of_errors = sum(list_of_errors)
+
+            if sum_of_errors < best_sum:
+                best_sum = sum_of_errors
+                best_pose = pose_key
+                best_landmark = landmark
+
+    return best_pose, best_landmark, best_sum
