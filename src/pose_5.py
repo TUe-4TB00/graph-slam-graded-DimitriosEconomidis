@@ -8,7 +8,8 @@ ODOMETRY_NOISE = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.2, 0.2, 0.1]))  # 
 MEASUREMENT_NOISE = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.05, 0.1]))  # (bearing, range)
 
 def add_pose(graph, initial_estimate, pose_5):
-    # Adding the initial estimate for the 5th pose using our helper function `add_pose_from_global` which also adds the odometry factor between X(4) and X(5).
+    # Adding the initial estimate for the 5th pose using our helper function `add_pose_from_global`
+    # which also adds the odometry factor between X(4) and X(5).
     pose_4 = initial_estimate.atPose2(X(4))
     graph, initial_estimate = add_pose_from_global(
         graph=graph,
@@ -22,7 +23,7 @@ def add_pose(graph, initial_estimate, pose_5):
     return graph, initial_estimate
 
 def add_landmark_measurement(graph, result, pose_5, landmark):
-    # Adding the measurement from X(5) to the chosen landmark using our helper function `add_landmark_measurement_from_global` which calculates the correct bearing and range from the global poses.``
+    # Adding the measurement from X(5) to the chosen landmark using our helper function.
     landmark_point = result.atPoint2(L(landmark))
     graph = add_landmark_measurement_from_global(
         graph=graph,
@@ -35,17 +36,16 @@ def add_landmark_measurement(graph, result, pose_5, landmark):
     return graph
 
 def optimize(graph, initial_estimate):
-    # TODO: Initialize the optimizer 
+    # Initialize the optimizer
+    params = gtsam.LevenbergMarquardtParams()
+    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_estimate, params)
 
-
-    # TODO: Perform the optimization and print the result
-
+    # Perform the optimization and print the result
+    result = optimizer.optimize()
     return result
 
-
-##--------
-
 def minimize_marginals(graph, initial_estimate, pose_options):
+    #TODO: try different pose and landmark options here, and keep the one with the lowest sum of marginals.
     best_pose = None
     best_landmark = None
     best_sum = float('inf')
@@ -60,7 +60,9 @@ def minimize_marginals(graph, initial_estimate, pose_options):
             g = add_landmark_measurement(g, result, pose_5, landmark)
             result = optimize(g, est)
 
+            # TODO: Calculate marginal covariances for the relevant variables and visualize the updated factor graph with covariances
             marginals_obj = gtsam.Marginals(g, result)
+            # The sum of the marginals for each landmark can be computed using marginals.marginalCovariance(L(x)).sum()
             total = (marginals_obj.marginalCovariance(L(1)).sum() +
                      marginals_obj.marginalCovariance(L(2)).sum())
 
@@ -72,6 +74,7 @@ def minimize_marginals(graph, initial_estimate, pose_options):
     return best_pose, best_landmark, best_sum
 
 def minimize_errors(graph, initial_estimate, pose_options):
+    #TODO: try different pose and landmark options here, and keep the one with the lowest resulting error.
     best_pose = None
     best_landmark = None
     best_sum = float('inf')
@@ -86,13 +89,14 @@ def minimize_errors(graph, initial_estimate, pose_options):
             g = add_landmark_measurement(g, result, pose_5, landmark)
             result = optimize(g, est)
 
-            # Sum the covariance trace for X(1), X(2), X(3) as a measure of pose error
+            # TODO: create a list of errors (each index corresponds to a pose) and add the error of each pose to the list
             marginals_obj = gtsam.Marginals(g, result)
             list_of_errors = [
                 np.trace(marginals_obj.marginalCovariance(X(1))),
                 np.trace(marginals_obj.marginalCovariance(X(2))),
                 np.trace(marginals_obj.marginalCovariance(X(3))),
             ]
+            # TODO: compute the sum of the errors and return it along with the best pose and landmark
             sum_of_errors = sum(list_of_errors)
 
             if sum_of_errors < best_sum:
