@@ -52,7 +52,10 @@ def minimize_marginals(graph, initial_estimate, pose_options):
 
     for pose_key, pose_5 in pose_options.items():
         for landmark in [1, 2]:
-            g = gtsam.NonlinearFactorGraph(graph)
+            # make independent copies so iterations don't interfere
+            g = gtsam.NonlinearFactorGraph()
+            for i in range(graph.size()):
+                g.add(graph.at(i))
             est = gtsam.Values(initial_estimate)
 
             g, est = add_pose(g, est, pose_5)
@@ -63,8 +66,7 @@ def minimize_marginals(graph, initial_estimate, pose_options):
             # TODO: Calculate marginal covariances for the relevant variables and visualize the updated factor graph with covariances
             marginals_obj = gtsam.Marginals(g, result)
             # The sum of the marginals for each landmark can be computed using marginals.marginalCovariance(L(x)).sum()
-            total = (marginals_obj.marginalCovariance(L(1)).sum() +
-                     marginals_obj.marginalCovariance(L(2)).sum())
+            total = marginals_obj.marginalCovariance(L(landmark)).sum()
 
             if total < best_sum:
                 best_sum = total
@@ -81,27 +83,24 @@ def minimize_errors(graph, initial_estimate, pose_options):
 
     for pose_key, pose_5 in pose_options.items():
         for landmark in [1, 2]:
-            g = gtsam.NonlinearFactorGraph(graph)
+            # make independent copies so iterations don't interfere
+            g = gtsam.NonlinearFactorGraph()
+            for i in range(graph.size()):
+                g.add(graph.at(i))
             est = gtsam.Values(initial_estimate)
 
             g, est = add_pose(g, est, pose_5)
             result = optimize(g, est)
             g = add_landmark_measurement(g, result, pose_5, landmark)
-            result = optimize(g, est)
 
             # TODO: create a list of errors (each index corresponds to a pose) and add the error of each pose to the list
-            marginals_obj = gtsam.Marginals(g, result)
-            list_of_errors = [
-                np.trace(marginals_obj.marginalCovariance(X(1))),
-                np.trace(marginals_obj.marginalCovariance(X(2))),
-                np.trace(marginals_obj.marginalCovariance(X(3))),
-            ]
+            list_of_errors = [g.error(est)]
             # TODO: compute the sum of the errors and return it along with the best pose and landmark
-            sum_of_errors = sum(list_of_errors)
+            sum_of_errors = g.error(est)
 
             if sum_of_errors < best_sum:
                 best_sum = sum_of_errors
                 best_pose = pose_key
                 best_landmark = landmark
 
-    return best_pose, best_landmark, best_sum
+    return best_pose, best_landmark, best_sumx
